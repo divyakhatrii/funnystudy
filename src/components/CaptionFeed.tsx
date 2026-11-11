@@ -36,6 +36,43 @@ const VOTE_SESSION_STORAGE_KEY = "captionVoteSessionId";
 
 type VoteStatus = "removing" | "saving" | "saved";
 
+const realFeedApi = {
+  endStudy,
+  loadMoreCaptionVoteCaptions,
+  removeCaptionVote,
+  saveCaptionNavigationEvent,
+  saveCaptionVote,
+  startStudy,
+};
+
+// Demo mode (public /demo route): same UI, nothing leaves the browser.
+const demoFeedApi: typeof realFeedApi = {
+  endStudy: async (studyId, stats) => ({
+    success: true,
+    participation: {
+      completion_stats: stats,
+      ended_at: new Date().toISOString(),
+      profile_id: "demo",
+      started_at: new Date().toISOString(),
+      study_id: studyId,
+    },
+  }),
+  loadMoreCaptionVoteCaptions: async () => ({ success: true, captions: [] }),
+  removeCaptionVote: async () => ({ success: true }),
+  saveCaptionNavigationEvent: async () => ({ success: true }),
+  saveCaptionVote: async () => ({ success: true }),
+  startStudy: async (studyId) => ({
+    success: true,
+    participation: {
+      completion_stats: null,
+      ended_at: null,
+      profile_id: "demo",
+      started_at: new Date().toISOString(),
+      study_id: studyId,
+    },
+  }),
+};
+
 function nowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
@@ -59,6 +96,7 @@ export function CaptionFeed({
   loadError,
   participationLoadError,
   studyId,
+  demo = false,
 }: {
   captionOrder: string[];
   captions: CaptionForVote[];
@@ -69,7 +107,9 @@ export function CaptionFeed({
   loadError: boolean;
   participationLoadError: boolean;
   studyId: number;
+  demo?: boolean;
 }) {
+  const api = demo ? demoFeedApi : realFeedApi;
   // Server-action revalidation must not reset an active run.
   const [entry] = useState({ captions, initialNextOffset, initialParticipation });
   const [queue, setQueue] = useState(entry.captions);
@@ -120,7 +160,7 @@ export function CaptionFeed({
     setIsLoadingMore(true);
     try {
       const captionIds = captionOrder.slice(offset, offset + STUDY_CAPTION_BATCH_SIZE);
-      const result = await loadMoreCaptionVoteCaptions({ captionIds, includePrivateStudies, studyId });
+      const result = await api.loadMoreCaptionVoteCaptions({ captionIds, includePrivateStudies, studyId });
       if (!result.success) {
         requestedOffsetsRef.current.delete(offset);
         setError(result.error ?? "We couldn't load more captions. Please try again.");
@@ -140,7 +180,7 @@ export function CaptionFeed({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [captionOrder, includePrivateStudies, isLoadingMore, nextOffset, studyId]);
+  }, [api, captionOrder, includePrivateStudies, isLoadingMore, nextOffset, studyId]);
 
   const markViewed = useCallback((key: string) => {
     if (firstVisibleAtRef.current[key] === undefined) {
@@ -166,7 +206,7 @@ export function CaptionFeed({
       ...previous,
       navigationTimeMsByKey: { ...previous.navigationTimeMsByKey, [key]: timeToNextCaptionMs },
     }));
-    void saveCaptionNavigationEvent({
+    void api.saveCaptionNavigationEvent({
       captionId: caption.id,
       clientEventId: createClientUuid(),
       inputMethod: "swipe",
@@ -174,7 +214,7 @@ export function CaptionFeed({
       studyCaptionMappingId: caption.studyCaptionMappingId,
       timeToNextCaptionMs,
     }).catch((err) => console.error("[CaptionFeed] navigation telemetry failed", err));
-  }, [getSessionId]);
+  }, [api, getSessionId]);
 
   const toggleHeart = useCallback((caption: CaptionForVote, inputMethod: "button" | "swipe") => {
     const key = getCaptionVoteKey(caption);
@@ -186,7 +226,7 @@ export function CaptionFeed({
 
     if (status === "saved") {
       setVoteStatuses((previous) => ({ ...previous, [key]: "removing" }));
-      removeCaptionVote({ captionId: caption.id, studyCaptionMappingId: caption.studyCaptionMappingId })
+      api.removeCaptionVote({ captionId: caption.id, studyCaptionMappingId: caption.studyCaptionMappingId })
         .then((result) => {
           if (!result?.success) {
             setVoteStatuses((previous) => ({ ...previous, [key]: "saved" }));
@@ -215,7 +255,7 @@ export function CaptionFeed({
     const firstVisibleAt = firstVisibleAtRef.current[key] ?? nowMs();
     const timeToVoteMs = Math.round(nowMs() - firstVisibleAt);
     setVoteStatuses((previous) => ({ ...previous, [key]: "saving" }));
-    saveCaptionVote({
+    api.saveCaptionVote({
       captionId: caption.id,
       clientEventId: createClientUuid(),
       inputMethod,
@@ -250,7 +290,7 @@ export function CaptionFeed({
         setError("We couldn't save your like. Please try again.");
       })
       .finally(() => setPendingCount((count) => Math.max(0, count - 1)));
-  }, [getSessionId, isEnded, voteStatuses]);
+  }, [api, getSessionId, isEnded, voteStatuses]);
 
   const handleStart = useCallback(async () => {
     if (participationPending) return;
@@ -258,7 +298,7 @@ export function CaptionFeed({
     setParticipationPending(true);
     setError(null);
     try {
-      const result = await startStudy(studyId);
+      const result = await api.startStudy(studyId);
       if (!result.success) {
         setError(result.error);
         return;
@@ -269,14 +309,14 @@ export function CaptionFeed({
     } finally {
       setParticipationPending(false);
     }
-  }, [participation, participationPending, studyId]);
+  }, [api, participation, participationPending, studyId]);
 
   const handleEnd = useCallback(async () => {
     if (participationPending || pendingCount > 0 || isEnded) return;
     setParticipationPending(true);
     setError(null);
     try {
-      const result = await endStudy(studyId, summarizeCompletionStats(stats));
+      const result = await api.endStudy(studyId, summarizeCompletionStats(stats));
       if (!result.success) {
         setError(result.error);
         return;
@@ -288,7 +328,7 @@ export function CaptionFeed({
     } finally {
       setParticipationPending(false);
     }
-  }, [isEnded, participationPending, pendingCount, stats, studyId]);
+  }, [api, isEnded, participationPending, pendingCount, stats, studyId]);
 
   // One observer for all posts: tracks "seen" dwell and scrolled-past events.
   const postObserverRef = useRef<IntersectionObserver | null>(null);
@@ -366,7 +406,7 @@ export function CaptionFeed({
       <header className="feed-topbar z-30 shrink-0 border-b border-[var(--feed-divider)] bg-[var(--feed-bar)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-xl items-center gap-2 px-2">
           <Link
-            href="/"
+            href={demo ? "/demo/home" : "/"}
             aria-label="Back to studies"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition hover:bg-[var(--surface-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-strong)]"
           >

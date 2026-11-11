@@ -10,6 +10,8 @@ const publicRoutes = ["/login", "/auth/login", "/auth/callback"];
 export async function proxy(request: NextRequest) {
   // Policy pages must be readable without an account or an Auth round trip.
   if (publicPolicyRoutes.includes(request.nextUrl.pathname)) return NextResponse.next();
+  // Database-free demo of the iteration 1 feed for PM review.
+  if (request.nextUrl.pathname === "/demo" || request.nextUrl.pathname.startsWith("/demo/")) return NextResponse.next();
   // Let API routes handle their own auth and errors.
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.next();
