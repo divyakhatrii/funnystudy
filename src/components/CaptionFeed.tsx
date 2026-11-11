@@ -2,7 +2,7 @@
 
 import { ArrowLeftIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartOutlineIcon } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import { CheckCircleIcon, HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
@@ -528,6 +528,7 @@ export function CaptionFeed({
                     index={index}
                     observeRef={observePost}
                     onToggleHeart={toggleHeart}
+                    seen={Boolean(stats.viewedCaptionKeys[key]) || voteStatuses[key] === "saved"}
                     status={voteStatuses[key] ?? null}
                     voteKey={key}
                   />
@@ -560,6 +561,7 @@ const FeedPost = memo(function FeedPost({
   index,
   observeRef,
   onToggleHeart,
+  seen,
   status,
   voteKey,
 }: {
@@ -567,6 +569,7 @@ const FeedPost = memo(function FeedPost({
   index: number;
   observeRef: (node: HTMLElement | null) => void;
   onToggleHeart: (caption: CaptionForVote, inputMethod: VoteInputMethod) => void;
+  seen: boolean;
   status: VoteStatus | null;
   voteKey: string;
 }) {
@@ -617,6 +620,7 @@ const FeedPost = memo(function FeedPost({
         <span className="font-semibold text-[var(--muted)]">Anonymous</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">#{index + 1}</span>
+        <SeenBadge seen={seen} />
       </div>
 
       <div
@@ -709,6 +713,32 @@ function WelcomeCard({ onStart, pending }: { onStart: () => void; pending: boole
         {pending ? "Starting…" : "Start scrolling"}
       </button>
     </div>
+  );
+}
+
+// Top-right of each post: "New" until the post counts as viewed, then "Seen".
+function SeenBadge({ seen }: { seen: boolean }) {
+  return (
+    <span
+      className={`feed-seen-badge ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        seen
+          ? "bg-[var(--feed-seen-bg)] text-[var(--feed-seen-fg)]"
+          : "bg-[var(--feed-chip)] text-[var(--muted)]"
+      }`}
+      aria-label={seen ? "Seen" : "Not seen yet"}
+    >
+      {seen ? (
+        <>
+          <CheckCircleIcon className="h-3.5 w-3.5" aria-hidden />
+          Seen
+        </>
+      ) : (
+        <>
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent,currentColor)]" aria-hidden />
+          New
+        </>
+      )}
+    </span>
   );
 }
 

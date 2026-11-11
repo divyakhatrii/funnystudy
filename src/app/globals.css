@@ -47,6 +47,8 @@
   --feed-card-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.9);
   --feed-divider: rgba(253, 224, 71, 0.12);
   --feed-chip: rgba(251, 191, 36, 0.14);
+  --feed-seen-bg: rgba(52, 211, 153, 0.16);
+  --feed-seen-fg: #6ee7b7;
   --font-geist-sans: "Geist", "Inter", "Helvetica Neue", Arial, system-ui,
     -apple-system, sans-serif;
   --font-geist-mono: "Geist Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
@@ -97,6 +99,8 @@
     --feed-card-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.35);
     --feed-divider: rgba(15, 23, 42, 0.08);
     --feed-chip: rgba(245, 158, 11, 0.14);
+    --feed-seen-bg: rgba(16, 185, 129, 0.14);
+    --feed-seen-fg: #047857;
     --error-bg: rgba(248, 113, 113, 0.15);
     --error-text: #7f1d1d;
     --error-border: rgba(248, 113, 113, 0.45);
@@ -149,6 +153,8 @@
   --feed-card-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.35);
   --feed-divider: rgba(15, 23, 42, 0.08);
   --feed-chip: rgba(245, 158, 11, 0.14);
+  --feed-seen-bg: rgba(16, 185, 129, 0.14);
+  --feed-seen-fg: #047857;
 }
 
 :root[data-theme="dark"] {
@@ -198,6 +204,8 @@
   --feed-card-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.9);
   --feed-divider: rgba(253, 224, 71, 0.12);
   --feed-chip: rgba(251, 191, 36, 0.14);
+  --feed-seen-bg: rgba(52, 211, 153, 0.16);
+  --feed-seen-fg: #6ee7b7;
 }
 
 @theme inline {
