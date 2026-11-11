@@ -1,7 +1,7 @@
 # Semester Project Part 2: Iteration 1 Progress Update
 
 **App:** funnystudy (The Humor Study)
-**Deployed URL:** [VERCEL URL]
+**Deployed URL:** https://funnystudy-two.vercel.app/demo (feed demo, no sign-in needed) and https://funnystudy-two.vercel.app/demo/home (empty home page with the text alert prompt). [Full signed-in app link: add once the database is connected.]
 **How to review:** Sign in with Google, finish the short onboarding questions, then open Study 80 from the home page. The old one-caption-at-a-time view is still available at `/study/80?view=classic` for comparison.
 
 ## User persona
