@@ -4,7 +4,7 @@ import { ArrowLeftIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outli
 import { HeartIcon as HeartOutlineIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import {
   loadMoreCaptionVoteCaptions,
@@ -21,7 +21,7 @@ import {
   type CaptionForVote,
   type SessionStudyStatsState,
 } from "@/components/CaptionVoteFlow";
-import { HEART_VOTE_VALUE } from "@/lib/caption-votes";
+import { HEART_VOTE_VALUE, type VoteInputMethod } from "@/lib/caption-votes";
 import { STUDY_CAPTION_BATCH_SIZE } from "@/lib/study-caption-order";
 import type { StudyParticipation } from "@/lib/study-participation";
 import { buildThumbnailVariants } from "@/lib/thumbnails";
@@ -216,7 +216,7 @@ export function CaptionFeed({
     }).catch((err) => console.error("[CaptionFeed] navigation telemetry failed", err));
   }, [api, getSessionId]);
 
-  const toggleHeart = useCallback((caption: CaptionForVote, inputMethod: "button" | "swipe") => {
+  const toggleHeart = useCallback((caption: CaptionForVote, inputMethod: VoteInputMethod) => {
     const key = getCaptionVoteKey(caption);
     if (!key || isEnded) return;
     const status = voteStatuses[key];
@@ -385,6 +385,65 @@ export function CaptionFeed({
     if (node) postObserverRef.current?.observe(node);
   }, []);
 
+  // Desktop keyboard support, matching the classic view's arrow keys:
+  // ArrowDown/J and ArrowUp/K jump post to post, L likes the post at the top.
+  const toggleHeartRef = useRef(toggleHeart);
+  useEffect(() => {
+    toggleHeartRef.current = toggleHeart;
+  }, [toggleHeart]);
+
+  useEffect(() => {
+    if (!hasStarted || isEnded) return;
+    const root = scrollRef.current;
+    root?.focus({ preventScroll: true });
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true'], #account-menu-root, #theme-menu-root")) return;
+      if (!root) return;
+      const key = event.key.toLowerCase();
+      const posts = Array.from(root.querySelectorAll<HTMLElement>("article[data-vote-key]"));
+      if (!posts.length) return;
+      const top = root.getBoundingClientRect().top;
+      // The "current" post is the first one whose bottom is still below the top edge.
+      let currentIndex = posts.findIndex((post) => post.getBoundingClientRect().bottom > top + 24);
+      if (currentIndex < 0) currentIndex = posts.length - 1;
+
+      if (key === "arrowdown" || key === "j" || key === "arrowup" || key === "k") {
+        event.preventDefault();
+        const currentTop = posts[currentIndex].getBoundingClientRect().top - top;
+        const forward = key === "arrowdown" || key === "j";
+        let nextIndex = forward ? currentIndex + 1 : currentIndex - 1;
+        // Going up from a partly scrolled post first snaps back to its own top.
+        if (!forward && currentTop < -8) nextIndex = currentIndex;
+        if (nextIndex >= posts.length) {
+          root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
+          return;
+        }
+        if (nextIndex < 0) {
+          root.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        const offset = posts[nextIndex].getBoundingClientRect().top - top - 8;
+        root.scrollBy({ top: offset, behavior: "smooth" });
+        return;
+      }
+
+      if (key === "l") {
+        const voteKey = posts[currentIndex].dataset.voteKey;
+        const caption = voteKey ? captionByKeyRef.current.get(voteKey) : undefined;
+        if (caption) {
+          event.preventDefault();
+          toggleHeartRef.current(caption, "keyboard");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hasStarted, isEnded]);
+
   // Infinite scroll: fetch the next batch well before the reader hits the end.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -435,8 +494,9 @@ export function CaptionFeed({
       <div
         ref={scrollRef}
         id="caption-feed-scroll"
+        tabIndex={-1}
         data-native-scroll-region="true"
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none [-webkit-overflow-scrolling:touch]"
       >
         <div className="mx-auto flex w-full max-w-xl flex-col gap-0 pb-28 sm:gap-3 sm:px-3 sm:pt-3">
           {error ? (
@@ -506,7 +566,7 @@ const FeedPost = memo(function FeedPost({
   caption: CaptionForVote;
   index: number;
   observeRef: (node: HTMLElement | null) => void;
-  onToggleHeart: (caption: CaptionForVote, inputMethod: "button" | "swipe") => void;
+  onToggleHeart: (caption: CaptionForVote, inputMethod: VoteInputMethod) => void;
   status: VoteStatus | null;
   voteKey: string;
 }) {
@@ -515,12 +575,24 @@ const FeedPost = memo(function FeedPost({
   const lastTapRef = useRef(0);
   const [burst, setBurst] = useState(0);
 
-  const handleMediaTap = () => {
+  const lastGestureLikeRef = useRef(0);
+  const likeFromGesture = () => {
+    // Some mobile browsers fire dblclick after our double-tap; count it once.
+    const now = nowMs();
+    if (now - lastGestureLikeRef.current < 600) return;
+    lastGestureLikeRef.current = now;
+    setBurst((value) => value + 1);
+    if (!liked) onToggleHeart(caption, "swipe");
+  };
+
+  // Touch/pen: our own fast double-tap timer. Mouse: the OS double-click,
+  // which respects the user's own double-click speed setting.
+  const handleMediaTap = (event: ReactPointerEvent) => {
+    if (event.pointerType === "mouse") return;
     const now = nowMs();
     if (now - lastTapRef.current <= DOUBLE_TAP_WINDOW_MS) {
       lastTapRef.current = 0;
-      setBurst((value) => value + 1);
-      if (!liked) onToggleHeart(caption, "swipe");
+      likeFromGesture();
       return;
     }
     lastTapRef.current = now;
@@ -547,7 +619,14 @@ const FeedPost = memo(function FeedPost({
         <span className="tabular-nums">#{index + 1}</span>
       </div>
 
-      <div onClick={handleMediaTap} className="relative select-none">
+      <div
+        onPointerUp={handleMediaTap}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          likeFromGesture();
+        }}
+        className="relative select-none"
+      >
         {caption.content ? (
           <p className="whitespace-pre-wrap break-words text-[17px] leading-snug text-[var(--foreground)]">
             {caption.content}
@@ -579,7 +658,8 @@ const FeedPost = memo(function FeedPost({
         {index === 0 ? (
           <span className="flex items-center gap-1 text-xs text-[var(--soft)]" aria-hidden>
             <ChatBubbleOvalLeftIcon className="h-4 w-4" />
-            Tip: double-tap a post to like it
+            <span className="touch-hint">Tip: double-tap a post to like it</span>
+            <span className="mouse-hint">Tip: double-click to like, or press L</span>
           </span>
         ) : null}
       </div>
@@ -618,6 +698,7 @@ function WelcomeCard({ onStart, pending }: { onStart: () => void; pending: boole
         <li>Scroll through captions like any feed.</li>
         <li>Tap the heart (or double-tap the post) on the ones you find funny.</li>
         <li>Hit End Study at the bottom to save your completion and see your stats.</li>
+        <li className="mouse-hint">On a computer: scroll or use ↓ and ↑ to move between posts, and double-click or press L to like.</li>
       </ul>
       <button
         type="button"

@@ -879,3 +879,11 @@ button[aria-busy="true"] {
 @media (prefers-reduced-motion: reduce) {
   .feed-heart-pop { animation-duration: 1ms; }
 }
+
+/* Feed hints: show the right wording for touch screens vs. mouse/trackpad. */
+.mouse-hint { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .mouse-hint { display: inline; }
+  li.mouse-hint { display: list-item; }
+  .touch-hint { display: none; }
+}
