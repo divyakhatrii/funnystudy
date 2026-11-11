@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, BellAlertIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 
 import { AccountMenu } from "@/components/AccountMenu";
 import { LocalDateTime } from "@/components/LocalDateTime";
@@ -18,6 +18,7 @@ import type { TablesUpdate } from "@/types/supabase";
 type Profile = {
   first_name: string | null;
   last_name: string | null;
+  notify_new_study_sms: boolean | null;
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -63,7 +64,7 @@ export default async function Home({
     await Promise.all([
       supabase
         .from("profiles")
-        .select("first_name, last_name")
+        .select("first_name, last_name, notify_new_study_sms")
         .eq("id", user.id)
         .single(),
       fetchPublicActiveStudyIdentities(supabase, studyNow),
@@ -76,6 +77,8 @@ export default async function Home({
     .join(" ")
     .trim();
   const displayName = fullName || user.email || "your account";
+  // Text alerts only go out to opted-in profiles with an Auth-verified phone.
+  const hasTextAlerts = profile?.notify_new_study_sms === true && Boolean(user.phone);
 
   if (!profile?.first_name || !profile?.last_name) {
     return (
@@ -121,15 +124,23 @@ export default async function Home({
         ) : activeStudyIdentities.length === 0 ? (
           <div className="glass-panel rounded-2xl p-6 text-center sm:p-8">
             <h1 className="text-2xl font-bold sm:text-3xl">No active studies</h1>
+            {hasTextAlerts ? (
+              <p className="mt-3 text-sm text-[var(--muted)] sm:text-base">
+                You&apos;re signed up for text alerts. We&apos;ll text you when the next one is out.
+              </p>
+            ) : (
+              <TextAlertsCallout variant="hero" />
+            )}
           </div>
         ) : (
           <>
-            <header className="mb-6 space-y-2 sm:mb-8">
+            <header className="mb-5 space-y-1 sm:mb-8">
               <h1 className="text-3xl font-bold sm:text-4xl">Active studies</h1>
               <p className="text-sm text-[var(--muted)] sm:text-base">
-                Choose a study to start rating captions.
+                Tap a study to scroll its captions and heart the funny ones.
               </p>
             </header>
+            {hasTextAlerts ? null : <TextAlertsCallout variant="banner" />}
             {participationError ? (
               <p role="alert" className="mb-4 text-sm text-[var(--error-text)]">
                 We couldn&apos;t load your study completion status. Please refresh to try again.
@@ -148,6 +159,7 @@ export default async function Home({
                         <h2 className="text-lg font-semibold sm:text-xl">
                           Study {study.id}
                         </h2>
+                        <ChatBubbleLeftRightIcon aria-hidden className="h-4 w-4 text-[var(--soft)]" />
                         {isStudyCompleted(participationByStudy.get(study.id)) ? (
                           <span className="rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-[var(--accent-contrast)]">
                             Completed
@@ -183,6 +195,39 @@ export default async function Home({
         )}
       </main>
       <AccountMenu displayName={displayName} email={user.email} signOutAction={signOut} />
+    </div>
+  );
+}
+
+function TextAlertsCallout({ variant }: { variant: "hero" | "banner" }) {
+  if (variant === "banner") {
+    return (
+      <Link
+        href="/settings#text-alerts"
+        className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-muted)] px-4 py-3 text-sm transition hover:border-[var(--accent)]"
+      >
+        <BellAlertIcon aria-hidden className="h-5 w-5 shrink-0 text-[var(--accent-strong)]" />
+        <span className="min-w-0 flex-1">Get a text when the next study drops.</span>
+        <span className="shrink-0 font-semibold text-[var(--accent-strong)]">Sign up</span>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <p className="text-base text-[var(--muted)]">
+        Sign up for text notifications when the next one is out!
+      </p>
+      <Link
+        href="/settings#text-alerts"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--accent-contrast)] transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)] sm:w-auto"
+      >
+        <BellAlertIcon aria-hidden className="h-5 w-5" />
+        Text me when it&apos;s out
+      </Link>
+      <p className="text-xs text-[var(--soft)]">
+        Takes about a minute: add your number, enter the code, and turn on text alerts.
+      </p>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { signOut } from "@/app/profile-actions";
 import { AccountMenu } from "@/components/AccountMenu";
 import { type CaptionForVote } from "@/components/CaptionVoteFlow";
+import { CaptionFeed } from "@/components/CaptionFeed";
 import { CaptionVoteSection } from "@/components/CaptionVoteSection";
 import { CompleteProfileForm } from "@/components/CompleteProfileForm";
 import { PrivateStudyDisclaimer } from "@/components/PrivateStudyDisclaimer";
@@ -138,6 +139,34 @@ export default async function NumericStudyPage({
   }));
 
   const slug = studyResult.study.slug?.trim() || "no slug";
+  const viewRaw = resolvedParams.view;
+  const isClassicView = (Array.isArray(viewRaw) ? viewRaw[0] : viewRaw) === "classic";
+
+  if (!isClassicView) {
+    return (
+      <>
+        {studyResult.study.is_private === true ? (
+          <PrivateStudyDisclaimer key={`${user.id}:${studyResult.study.id}`} />
+        ) : null}
+        <CaptionFeed
+          key={`${user.id}:${studyResult.study.id}`}
+          captionOrder={captionOrder}
+          captions={captionsForVote}
+          includePrivateStudies
+          initialNextOffset={nextOffset}
+          initialParticipation={participation}
+          initialTotalCaptionCount={captionOrder.length}
+          loadError={!!activeStudyError}
+          participationLoadError={!!participationError}
+          studyId={studyResult.study.id}
+        />
+        <AccountMenu displayName={displayName} email={user.email} signOutAction={signOut} />
+        {profile.is_superadmin ? (
+          <StudyEasterEgg revealText={`study ${studyResult.study.id} | ${slug}`} />
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <div

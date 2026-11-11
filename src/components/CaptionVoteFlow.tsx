@@ -186,7 +186,7 @@ type HeartBurstState = {
   token: number;
   voteKey: string | null;
 };
-type SessionStudyStatsState = {
+export type SessionStudyStatsState = {
   likedCaptionTimeMsByKey: Record<string, number>;
   navigationTimeMsByKey: Record<string, number>;
   viewedCaptionKeys: Record<string, true>;
@@ -218,7 +218,7 @@ function getMedianValue(values: number[]) {
   );
 }
 
-function summarizeCompletionStats(
+export function summarizeCompletionStats(
   sessionStudyStats: SessionStudyStatsState,
   viewedCountFloor = 0
 ): StudyStats {
@@ -266,7 +266,7 @@ function isCaptionTimerActive() {
   return document.visibilityState === "visible" && document.hasFocus();
 }
 
-function createClientUuid() {
+export function createClientUuid() {
   const cryptoApi = globalThis.crypto;
 
   if (cryptoApi?.randomUUID) {
@@ -293,7 +293,7 @@ function createClientUuid() {
   });
 }
 
-function getCaptionVoteKey(caption: CaptionForVote | undefined) {
+export function getCaptionVoteKey(caption: CaptionForVote | undefined) {
   if (!caption) {
     return null;
   }

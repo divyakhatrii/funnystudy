@@ -59,7 +59,9 @@ export default async function SettingsPage() {
           ) : (
             <>
               <SettingsForm initialSettings={settings} />
-              <PhoneSettingsForm initialState={phoneSettingsForUser(user)} />
+              <div id="text-alerts" className="scroll-mt-4">
+                <PhoneSettingsForm initialState={phoneSettingsForUser(user)} />
+              </div>
             </>
           )}
         </section>

@@ -42,6 +42,11 @@
   --error-bg: rgba(244, 63, 94, 0.15);
   --error-text: #ffe4e6;
   --error-border: rgba(248, 113, 113, 0.4);
+  --feed-bar: rgba(5, 5, 5, 0.86);
+  --feed-card: #0d0c0a;
+  --feed-card-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.9);
+  --feed-divider: rgba(253, 224, 71, 0.12);
+  --feed-chip: rgba(251, 191, 36, 0.14);
   --font-geist-sans: "Geist", "Inter", "Helvetica Neue", Arial, system-ui,
     -apple-system, sans-serif;
   --font-geist-mono: "Geist Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
@@ -87,6 +92,11 @@
     --heart-hover: #be123c;
     --heart-active: #e11d48;
     --heart-shadow: rgba(225, 29, 72, 0.24);
+    --feed-bar: rgba(255, 255, 255, 0.9);
+    --feed-card: #ffffff;
+    --feed-card-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.35);
+    --feed-divider: rgba(15, 23, 42, 0.08);
+    --feed-chip: rgba(245, 158, 11, 0.14);
     --error-bg: rgba(248, 113, 113, 0.15);
     --error-text: #7f1d1d;
     --error-border: rgba(248, 113, 113, 0.45);
@@ -134,6 +144,11 @@
   --error-bg: rgba(248, 113, 113, 0.15);
   --error-text: #7f1d1d;
   --error-border: rgba(248, 113, 113, 0.45);
+  --feed-bar: rgba(255, 255, 255, 0.9);
+  --feed-card: #ffffff;
+  --feed-card-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.35);
+  --feed-divider: rgba(15, 23, 42, 0.08);
+  --feed-chip: rgba(245, 158, 11, 0.14);
 }
 
 :root[data-theme="dark"] {
@@ -178,6 +193,11 @@
   --error-bg: rgba(244, 63, 94, 0.15);
   --error-text: #ffe4e6;
   --error-border: rgba(248, 113, 113, 0.4);
+  --feed-bar: rgba(5, 5, 5, 0.86);
+  --feed-card: #0d0c0a;
+  --feed-card-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.9);
+  --feed-divider: rgba(253, 224, 71, 0.12);
+  --feed-chip: rgba(251, 191, 36, 0.14);
 }
 
 @theme inline {
@@ -838,4 +858,24 @@ button[aria-busy="true"] {
   100% {
     transform: translateX(45%);
   }
+}
+
+.feed-avatar {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-strong);
+}
+
+.feed-heart-pop {
+  animation: feedHeartPop 700ms ease-out forwards;
+}
+
+@keyframes feedHeartPop {
+  0% { opacity: 0; transform: scale(0.4); }
+  25% { opacity: 0.95; transform: scale(1.1); }
+  60% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-heart-pop { animation-duration: 1ms; }
 }
