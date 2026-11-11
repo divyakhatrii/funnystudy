@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { CaptionFeed } from "@/components/CaptionFeed";
 import type { CaptionForVote } from "@/components/CaptionVoteFlow";
-import demoCaptions from "@/lib/demo/study-80-captions.json";
+import demoCaptions from "@/lib/demo/study-122-captions.json";
 
 export const metadata = { title: "Humor Study feed demo" };
 
@@ -24,7 +24,7 @@ export default function DemoFeedPage() {
         initialTotalCaptionCount={captions.length}
         loadError={false}
         participationLoadError={false}
-        studyId={80}
+        studyId={122}
       />
     </>
   );

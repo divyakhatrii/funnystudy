@@ -2,7 +2,7 @@
 
 **App:** funnystudy (The Humor Study)
 **Deployed URL:** https://funnystudy-two.vercel.app (sign in with Google). A no-sign-in preview of the feed is at https://funnystudy-two.vercel.app/demo.
-**How to review:** Sign in with Google, finish the short onboarding questions, then open Study 80 from the home page. The old one-caption-at-a-time view is still available at `/study/80?view=classic` for comparison.
+**How to review:** Sign in with Google, finish the short onboarding questions, then open Study 122 from the home page. The old one-caption-at-a-time view is still available at `/study/117?view=classic` for comparison.
 
 ## User persona
 
