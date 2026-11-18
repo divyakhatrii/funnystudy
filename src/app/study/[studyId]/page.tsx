@@ -64,7 +64,9 @@ export default async function NumericStudyPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    const viewParam = Array.isArray(resolvedParams.view) ? resolvedParams.view[0] : resolvedParams.view;
+    const returnPath = `/study/${studyId}${viewParam === "classic" ? "?view=classic" : ""}`;
+    redirect(`/login?redirectedFrom=${encodeURIComponent(returnPath)}`);
   }
 
   const studyResult = await resolveNumericStudy(supabase, studyId, studyNow);

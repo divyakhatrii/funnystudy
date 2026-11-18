@@ -36,6 +36,7 @@ export default async function Home({
   // ?view=classic shows the original home page (no text-alert prompts) and keeps
   // study links on the classic study view, for before/after demos.
   const isClassicView = (Array.isArray(viewRaw) ? viewRaw[0] : viewRaw) === "classic";
+  const homePath = isClassicView ? "/?view=classic" : "/";
 
   const supabase = await createClient();
   const studyNow = new Date();
@@ -44,13 +45,13 @@ export default async function Home({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect(isClassicView ? `/login?redirectedFrom=${encodeURIComponent(homePath)}` : "/login");
   }
 
   const cookieStore = await cookies();
   const skippedNotifications = readNotificationSkips(cookieStore.get(NOTIFICATION_SKIPS_COOKIE)?.value, user.id);
   if ((await fetchNotificationPreferences(supabase, user.id, skippedNotifications)).pending.length) {
-    redirect(buildNotificationPreferencesPath("/"));
+    redirect(buildNotificationPreferencesPath(homePath));
   }
 
   const skippedQuestionIds = readDemographicSkips(
@@ -59,7 +60,7 @@ export default async function Home({
   );
 
   if (await hasPendingDemographicQuestions(supabase, user.id, skippedQuestionIds)) {
-    redirect(buildDemographicsPath({ next: "/", skippedQuestionIds }));
+    redirect(buildDemographicsPath({ next: homePath, skippedQuestionIds }));
   }
 
   const [
