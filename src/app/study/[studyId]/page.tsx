@@ -176,7 +176,7 @@ export default async function NumericStudyPage({
       {studyResult.study.is_private === true ? (
         <PrivateStudyDisclaimer key={`${user.id}:${studyResult.study.id}`} />
       ) : null}
-      <StudyNavigation />
+      <StudyNavigation href="/?view=classic" />
       <div
         id="numeric-study-content"
         className="relative mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col items-stretch"
@@ -207,11 +207,11 @@ export default async function NumericStudyPage({
   );
 }
 
-function StudyNavigation() {
+function StudyNavigation({ href = "/" }: { href?: string }) {
   return (
     <nav aria-label="Study navigation" className="flex shrink-0">
       <Link
-        href="/"
+        href={href}
         aria-label="Back to studies"
         title="Back to studies"
         className="flex h-14 w-14 items-center justify-center rounded-full text-[var(--foreground)] transition hover:bg-[var(--surface-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"

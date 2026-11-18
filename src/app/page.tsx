@@ -32,6 +32,10 @@ export default async function Home({
   const resolvedParams = (await searchParams) ?? {};
   const messageRaw = resolvedParams.message;
   const message = Array.isArray(messageRaw) ? messageRaw[0] : messageRaw;
+  const viewRaw = resolvedParams.view;
+  // ?view=classic shows the original home page (no text-alert prompts) and keeps
+  // study links on the classic study view, for before/after demos.
+  const isClassicView = (Array.isArray(viewRaw) ? viewRaw[0] : viewRaw) === "classic";
 
   const supabase = await createClient();
   const studyNow = new Date();
@@ -125,7 +129,7 @@ export default async function Home({
         ) : activeStudyIdentities.length === 0 ? (
           <div className="glass-panel rounded-2xl p-6 text-center sm:p-8">
             <h1 className="text-2xl font-bold sm:text-3xl">No active studies</h1>
-            {hasTextAlerts ? (
+            {isClassicView ? null : hasTextAlerts ? (
               <p className="mt-3 text-sm text-[var(--muted)] sm:text-base">
                 You&apos;re signed up for text alerts. We&apos;ll text you when the next one is out.
               </p>
@@ -138,10 +142,12 @@ export default async function Home({
             <header className="mb-5 space-y-1 sm:mb-8">
               <h1 className="text-3xl font-bold sm:text-4xl">Active studies</h1>
               <p className="text-sm text-[var(--muted)] sm:text-base">
-                Tap a study to scroll its captions and heart the funny ones.
+                {isClassicView
+                  ? "Choose a study to start rating captions."
+                  : "Tap a study to scroll its captions and heart the funny ones."}
               </p>
             </header>
-            {hasTextAlerts ? null : <TextAlertsCallout variant="banner" />}
+            {hasTextAlerts || isClassicView ? null : <TextAlertsCallout variant="banner" />}
             {participationError ? (
               <p role="alert" className="mb-4 text-sm text-[var(--error-text)]">
                 We couldn&apos;t load your study completion status. Please refresh to try again.
@@ -151,7 +157,7 @@ export default async function Home({
               {activeStudyIdentities.map((study) => (
                 <li key={study.id}>
                   <Link
-                    href={`/study/${study.id}`}
+                    href={isClassicView ? `/study/${study.id}?view=classic` : `/study/${study.id}`}
                     prefetch={false}
                     className="glass-panel flex items-center gap-4 rounded-2xl p-5 transition hover:border-[var(--accent)] hover:bg-[var(--surface-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)] sm:p-6"
                   >
