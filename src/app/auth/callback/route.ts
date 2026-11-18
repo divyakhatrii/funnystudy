@@ -74,7 +74,9 @@ export async function GET(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user && (await fetchNotificationPreferences(supabase, user.id)).pending.length) {
+    // Classic-view sign-ins recreate the old flow, which had no notifications step.
+    const isClassicView = new URL(next, "http://localhost").searchParams.get("view") === "classic";
+    if (user && !isClassicView && (await fetchNotificationPreferences(supabase, user.id)).pending.length) {
       const response = NextResponse.redirect(new URL(buildNotificationPreferencesPath(next), redirectOrigin), 303);
       response.cookies.set({ name: "login_next", value: "", maxAge: 0, path: "/" });
       return response;

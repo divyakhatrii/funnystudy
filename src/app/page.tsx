@@ -50,7 +50,8 @@ export default async function Home({
 
   const cookieStore = await cookies();
   const skippedNotifications = readNotificationSkips(cookieStore.get(NOTIFICATION_SKIPS_COOKIE)?.value, user.id);
-  if ((await fetchNotificationPreferences(supabase, user.id, skippedNotifications)).pending.length) {
+  // The classic view recreates the old flow, which never prompted for notifications.
+  if (!isClassicView && (await fetchNotificationPreferences(supabase, user.id, skippedNotifications)).pending.length) {
     redirect(buildNotificationPreferencesPath(homePath));
   }
 
