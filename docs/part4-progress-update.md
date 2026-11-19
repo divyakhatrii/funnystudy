@@ -1,7 +1,7 @@
 # Semester Project Part 4: Iteration 3 Progress Update
 
 **App:** funnystudy (The Humor Study)
-**Deployed URL:** [commit-specific Vercel URL]
+**Deployed URL:** https://funnystudy-oottd7oxm-humor1.vercel.app
 **How to review:** Sign in with Google and open Study 122 from the home page. Tap Start scrolling, scroll quickly to the bottom without stopping on each post, then tap the grayed-out End Study button or the "x/y seen" chip in the top right. A no-sign-in version of the feed is at `/demo` on the same URL.
 
 ## User persona
