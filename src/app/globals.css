@@ -888,6 +888,17 @@ button[aria-busy="true"] {
   .feed-heart-pop { animation-duration: 1ms; }
 }
 
+/* Flash on the post that "jump to first unseen" lands on. Inset so it never
+   overlaps neighbouring posts. */
+.feed-post-highlight {
+  animation: feedPostHighlight 1600ms ease-out;
+}
+
+@keyframes feedPostHighlight {
+  0%, 40% { box-shadow: inset 0 0 0 3px var(--accent); }
+  100% { box-shadow: inset 0 0 0 3px transparent; }
+}
+
 /* Feed hints: show the right wording for touch screens vs. mouse/trackpad. */
 .mouse-hint { display: none; }
 @media (hover: hover) and (pointer: fine) {

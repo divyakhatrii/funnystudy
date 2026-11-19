@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowDownIcon, ArrowLeftIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartOutlineIcon } from "@heroicons/react/24/outline";
 import { CheckCircleIcon, HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
@@ -138,6 +138,25 @@ export function CaptionFeed({
   const viewedCount = Object.keys(stats.viewedCaptionKeys).length;
   const likedCount = Object.keys(stats.likedCaptionTimeMsByKey).length;
   const reachedEnd = nextOffset === null;
+  const isSeenKey = useCallback(
+    (key: string) => Boolean(stats.viewedCaptionKeys[key]) || voteStatuses[key] === "saved",
+    [stats.viewedCaptionKeys, voteStatuses]
+  );
+  const firstUnseenKey = useMemo(() => {
+    for (const caption of queue) {
+      const key = getCaptionVoteKey(caption) ?? caption.id;
+      if (!isSeenKey(key)) return key;
+    }
+    return null;
+  }, [isSeenKey, queue]);
+  const seenCount = useMemo(
+    () => queue.reduce((count, caption) => count + (isSeenKey(getCaptionVoteKey(caption) ?? caption.id) ? 1 : 0), 0),
+    [isSeenKey, queue]
+  );
+  // Captions not loaded yet count as unseen, so End Study unlocks only after the
+  // last batch is in and every post in it has been seen.
+  const unseenCount = Math.max(0, totalCount - seenCount);
+  const allSeen = reachedEnd && firstUnseenKey === null;
 
   const getSessionId = useCallback(() => {
     if (sessionIdRef.current) return sessionIdRef.current;
@@ -330,6 +349,39 @@ export function CaptionFeed({
     }
   }, [api, isEnded, participationPending, pendingCount, stats, studyId]);
 
+  // Scrolls to the first post the reader hasn't seen and flashes it. If every
+  // loaded post is seen but more are still coming, scroll down to load them.
+  const highlightTimerRef = useRef<number | null>(null);
+  const jumpToFirstUnseen = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    if (!firstUnseenKey) {
+      root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
+      return;
+    }
+    const post = Array.from(root.querySelectorAll<HTMLElement>("article[data-vote-key]"))
+      .find((node) => node.dataset.voteKey === firstUnseenKey);
+    if (!post) return;
+    const alignOffset = () => post.getBoundingClientRect().top - root.getBoundingClientRect().top - 8;
+    root.scrollBy({ top: alignOffset(), behavior: "smooth" });
+    // Images loading above the target can shift it mid-scroll; re-align once.
+    window.setTimeout(() => {
+      const drift = alignOffset();
+      if (Math.abs(drift) > 16) root.scrollBy({ top: drift, behavior: "smooth" });
+    }, 1200);
+    root.querySelectorAll(".feed-post-highlight").forEach((node) => node.classList.remove("feed-post-highlight"));
+    post.classList.add("feed-post-highlight");
+    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = window.setTimeout(() => {
+      post.classList.remove("feed-post-highlight");
+      highlightTimerRef.current = null;
+    }, 1600);
+  }, [firstUnseenKey]);
+
+  useEffect(() => () => {
+    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+  }, []);
+
   // One observer for all posts: tracks "seen" dwell and scrolled-past events.
   const postObserverRef = useRef<IntersectionObserver | null>(null);
   const captionByKeyRef = useRef<Map<string, CaptionForVote>>(new Map());
@@ -476,16 +528,32 @@ export function CaptionFeed({
             <p className="truncate text-xs text-[var(--soft)]">Study {studyId} · heart what made you laugh</p>
           </div>
           {hasStarted && !isEnded ? (
-            <p className="shrink-0 rounded-full bg-[var(--feed-chip)] px-3 py-1 text-xs font-semibold tabular-nums" aria-live="polite">
-              {viewedCount.toLocaleString("en-US")}/{totalCount.toLocaleString("en-US")} seen
-            </p>
+            <button
+              type="button"
+              onClick={jumpToFirstUnseen}
+              aria-live="polite"
+              aria-label={
+                allSeen
+                  ? `All ${totalCount} captions seen. Go to End Study.`
+                  : `${seenCount} of ${totalCount} seen. Jump to the first caption you haven't seen.`
+              }
+              title={allSeen ? "All seen: go to End Study" : "Jump to the first caption you haven't seen"}
+              className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--feed-chip)] px-3 py-1.5 text-xs font-semibold tabular-nums transition hover:bg-[var(--surface-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-strong)]"
+            >
+              {seenCount.toLocaleString("en-US")}/{totalCount.toLocaleString("en-US")} seen
+              {allSeen ? (
+                <CheckCircleIcon aria-hidden className="h-4 w-4 text-[var(--accent-strong)]" />
+              ) : (
+                <ArrowDownIcon aria-hidden className="h-3.5 w-3.5" />
+              )}
+            </button>
           ) : null}
         </div>
         {hasStarted && !isEnded && totalCount > 0 ? (
           <div className="h-0.5 w-full bg-[var(--feed-divider)]" aria-hidden>
             <div
               className="h-full bg-[var(--accent)] transition-[width] duration-300"
-              style={{ width: `${Math.min(100, (viewedCount / totalCount) * 100)}%` }}
+              style={{ width: `${Math.min(100, (seenCount / totalCount) * 100)}%` }}
             />
           </div>
         ) : null}
@@ -541,10 +609,13 @@ export function CaptionFeed({
                 </div>
               ) : (
                 <EndCard
+                  allSeen={allSeen}
                   ending={participationPending}
                   likedCount={likedCount}
                   onEnd={handleEnd}
+                  onJumpToUnseen={jumpToFirstUnseen}
                   pendingCount={pendingCount}
+                  unseenCount={unseenCount}
                   viewedCount={viewedCount}
                 />
               )}
@@ -742,27 +813,51 @@ function SeenBadge({ seen }: { seen: boolean }) {
   );
 }
 
-function EndCard({ ending, likedCount, onEnd, pendingCount, viewedCount }: {
+function EndCard({ allSeen, ending, likedCount, onEnd, onJumpToUnseen, pendingCount, unseenCount, viewedCount }: {
+  allSeen: boolean;
   ending: boolean;
   likedCount: number;
   onEnd: () => void;
+  onJumpToUnseen: () => void;
   pendingCount: number;
+  unseenCount: number;
   viewedCount: number;
 }) {
+  const [nudged, setNudged] = useState(false);
+  const locked = !allSeen;
+  const handleClick = () => {
+    if (locked) {
+      // Grayed out, but still tappable: take the reader to what they missed.
+      setNudged(true);
+      onJumpToUnseen();
+      return;
+    }
+    onEnd();
+  };
   return (
     <div className="mx-3 my-6 rounded-2xl border border-[var(--feed-divider)] bg-[var(--feed-card)] p-6 text-center shadow-[var(--feed-card-shadow)]">
-      <h2 className="text-xl font-bold">You&apos;re all caught up</h2>
+      <h2 className="text-xl font-bold">{locked ? "Almost there" : "You’re all caught up"}</h2>
       <p className="mt-2 text-sm text-[var(--soft)]">
-        You liked {likedCount.toLocaleString("en-US")} of {viewedCount.toLocaleString("en-US")} captions you saw. End the study to save your completion and see your humor stats.
+        {locked
+          ? `You still have ${unseenCount.toLocaleString("en-US")} caption${unseenCount === 1 ? "" : "s"} you haven’t seen. See them all to unlock End Study.`
+          : `You liked ${likedCount.toLocaleString("en-US")} of ${viewedCount.toLocaleString("en-US")} captions you saw. End the study to save your completion and see your humor stats.`}
       </p>
       {pendingCount > 0 ? <p role="status" className="mt-3 text-sm text-[var(--soft)]">Saving your last like…</p> : null}
+      {locked && nudged ? (
+        <p role="status" className="mt-3 text-sm font-semibold text-[var(--muted)]">Taking you to the first one you haven’t seen.</p>
+      ) : null}
       <button
         type="button"
-        onClick={onEnd}
+        onClick={handleClick}
         disabled={ending || pendingCount > 0}
-        className="mt-5 w-full rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-contrast)] disabled:cursor-wait disabled:opacity-60"
+        aria-disabled={locked || undefined}
+        className={`mt-5 w-full rounded-xl px-5 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
+          locked
+            ? "bg-[var(--surface-muted)] text-[var(--soft)]"
+            : "bg-[var(--accent)] text-[var(--accent-contrast)]"
+        }`}
       >
-        {ending ? "Ending…" : "End Study"}
+        {ending ? "Ending…" : locked ? `End Study (${unseenCount.toLocaleString("en-US")} left)` : "End Study"}
       </button>
     </div>
   );
